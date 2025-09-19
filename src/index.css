@@ -1,1 +1,35 @@
+/* Tailwind base imports */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Global body styling */
+body {
+  @apply bg-gray-900 text-white font-sans;
+}
+
+/* Optional custom styles for cards, buttons */
+.card {
+  @apply bg-gray-800 rounded p-4 shadow-md;
+}
+
+.button {
+  @apply px-4 py-2 rounded text-white font-semibold;
+}
+
+.button-primary {
+  @apply bg-purple-500 hover:bg-purple-600;
+}
+
+.button-green {
+  @apply bg-green-500 hover:bg-green-600;
+}
+
+.button-blue {
+  @apply bg-blue-500 hover:bg-blue-600;
+}
+
+.button-yellow {
+  @apply bg-yellow-500 hover:bg-yellow-600;
+}
 
