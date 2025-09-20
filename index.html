@@ -1,1 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Navaraa Staking — DApp</title>
+
+  <!-- External CSS -->
+  <link rel="stylesheet" href="style.css" />
+
+  <!-- Ethers.js CDN (v5) -->
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.min.js"></script>
+  <!-- WalletConnect v1 provider (mobile wallets) -->
+  <script src="https://cdn.jsdelivr.net/npm/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js"></script>
+  <!-- Web3Modal v1 -->
+  <script src="https://cdn.jsdelivr.net/npm/web3modal@1.9.12/dist/index.min.js"></script>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="brand">
+        <div class="logo">NV</div>
+        <div>
+          <h1>Navaraa Staking</h1>
+          <p class="sub">Stake NAVAA — Earn up to 4x · Referrals · Polygon</p>
+        </div>
+      </div>
+
+      <div class="controls">
+        <div id="networkBadge" class="badge">Polygon</div>
+        <div id="addrShort" class="tiny-muted">Not connected</div>
+        <button id="connectBtn" class="btn">Connect Wallet</button>
+      </div>
+    </header>
+
+    <main class="grid">
+      <!-- left column: user + forms -->
+      <section class="card">
+        <div class="row" style="margin-bottom:12px;">
+          <div>
+            <div class="muted">Your Wallet</div>
+            <div style="display:flex; gap:8px; align-items:center; margin-top:6px;">
+              <div id="walletBalance" class="badge">0 NAVAA</div>
+              <div id="totalPending" class="pill">Pending: 0</div>
+            </div>
+            <div class="tiny-muted" style="margin-top:6px;">Token: <span id="tokenAddrShort"></span></div>
+          </div>
+          <div style="text-align:right;">
+            <div class="muted">Contract</div>
+            <div class="tiny-muted" id="contractAddrShort"></div>
+            <div class="tiny-muted" id="managementWallet"></div>
+          </div>
+        </div>
+
+        <hr class="divider" />
+
+        <!-- Stake form -->
+        <div class="field">
+          <label>Amount to stake (NAVAA)</label>
+          <input id="stakeAmount" type="number" placeholder="170000 (minimum)" min="0" step="1" />
+        </div>
+        <div class="field">
+          <label>Referrer (optional address)</label>
+          <input id="referrer" type="text" placeholder="0x... or leave empty for management wallet" />
+          <div class="tiny-muted">If left empty, management wallet will be used as referrer.</div>
+        </div>
+        <div class="flex">
+          <button id="stakeBtn" class="btn">Stake Tokens</button>
+          <button id="approveBtn" class="btn ghost">Approve Token</button>
+          <div id="stakeSpinner" style="display:none" class="spinner"></div>
+        </div>
+
+        <hr class="divider" />
+
+        <div class="actions">
+          <div>
+            <div class="muted">Claim Rewards</div>
+            <div class="tiny-muted">Select the stakes below and click <strong>Claim</strong></div>
+            <div style="margin-top:8px;">
+              <button id="claimBtn" class="btn">Claim Selected</button>
+              <div id="claimSpinner" style="display:none" class="spinner"></div>
+            </div>
+          </div>
+
+          <div>
+            <div class="muted">Withdraw Principal (Matured)</div>
+            <div class="tiny-muted">Select matured stakes and click <strong>Withdraw</strong></div>
+            <div style="margin-top:8px;">
+              <button id="withdrawBtn" class="btn">Withdraw Selected</button>
+              <div id="withdrawSpinner" style="display:none" class="spinner"></div>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- right column: stakes list & logs -->
+      <section class="card">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+          <div>
+            <div class="muted">Your Stakes</div>
+            <div class="tiny-muted">Indexes, amounts, start time, pending reward (live)</div>
+          </div>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <button id="refreshBtn" class="btn ghost">Refresh</button>
+            <div id="loadingLives" style="display:none" class="tiny-muted"><span class="spinner"></span></div>
+          </div>
+        </div>
+
+        <div class="stake-list" id="stakeList">
+          <!-- dynamic stake items -->
+        </div>
+
+        <hr class="divider" />
+        <div style="display:flex; justify-content:space-between; gap:12px; align-items:center;">
+          <div class="tiny-muted">Logs</div>
+          <button id="clearLog" class="btn ghost">Clear</button>
+        </div>
+        <pre id="log" class="logbox">Ready.</pre>
+      </section>
+    </main>
+
+    <footer>
+      <div>Copy-paste ready — Host with GitHub Pages. &nbsp;|&nbsp; Built for Polygon Mainnet</div>
+    </footer>
+  </div>
+
+  <!-- App logic -->
+  <script src="app.js"></script>
+</body>
+</html>
 
