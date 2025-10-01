@@ -5,151 +5,133 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Navaraa Admin Panel</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
 <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js"></script>
 
 <style>
-body { font-family: 'Poppins', sans-serif; background:#f5f5f5; margin:0; padding:0;}
-.header { background:#1e1e2f; color:#fff; padding:15px 20px; text-align:center; font-size:20px; font-weight:600; }
-.container { max-width:600px; margin:20px auto; padding:0 15px; display:flex; flex-direction:column; gap:20px; }
-.card { background:#fff; padding:20px; border-radius:12px; box-shadow:0 5px 20px rgba(0,0,0,0.1); }
-.card h3 { margin-bottom:12px; font-size:18px; color:#333; }
-.card input, .card button { padding:10px; border-radius:8px; border:1px solid #ccc; font-size:16px; margin-bottom:10px; width:100%; }
-.card button { cursor:pointer; background:#4facfe; color:#fff; font-weight:600; border:none; transition:0.3s; }
-.card button:hover { background:#00f2fe; }
-.info { font-weight:600; font-size:16px; color:#111; margin-bottom:5px; }
-@media(max-width:480px){ .container{padding:0 10px;} }
+body{
+  font-family: 'Poppins', sans-serif;
+  background:#f5f5f5;
+  margin:0;
+  padding:0;
+}
+.container{
+  max-width: 600px;
+  margin: 80px auto 40px auto;
+  padding:20px;
+  background: rgba(255,255,255,0.1);
+  border-radius:15px;
+  backdrop-filter: blur(12px) saturate(180%);
+}
+h2{ text-align:center; margin-bottom:20px; color:#333; }
+input, button{ padding:10px; border-radius:8px; border:1px solid #444; margin-bottom:15px; width:100%; font-size:16px; }
+button{ cursor:pointer; font-weight:600; background:#4facfe; color:#fff; border:none; transition:0.3s; }
+button:hover{ background:#00f2fe; }
+.info-card{
+  background: rgba(255,255,255,0.15);
+  backdrop-filter: blur(12px) saturate(180%);
+  padding:15px;
+  margin-bottom:15px;
+  border-radius:12px;
+  text-align:center;
+  font-weight:600;
+  font-size:16px;
+}
+label{ font-weight:600; color:#222; margin-bottom:5px; display:block;}
 </style>
 </head>
 <body>
 
-<div class="header">Navaraa Admin Panel</div>
 <div class="container">
-  <div class="card">
-    <h3>Connect Owner Wallet</h3>
-    <button id="connectButton">Connect Wallet</button>
-    <div id="ownerAddress" class="info">Not Connected</div>
+  <h2>Navaraa Admin Panel</h2>
+
+  <div class="info-card">
+    <div>Live Reward Fund: <span id="rewardFund">-</span> Navaa</div>
+    <div>Total Staking Accounts: <span id="totalAccounts">-</span></div>
   </div>
 
-  <div class="card">
-    <h3>Fund Reward Pool</h3>
-    <input type="number" id="fundAmount" placeholder="Amount to Fund (NAVAA)">
-    <button onclick="fundReward()">Fund Pool</button>
-    <div id="fundStatus" class="info"></div>
-  </div>
+  <label for="fundAmount">Fund Reward (Navaa):</label>
+  <input type="number" id="fundAmount" placeholder="Enter amount to fund">
+  <button onclick="fundTokens()">Fund</button>
 
-  <div class="card">
-    <h3>Rescue Extra Tokens</h3>
-    <input type="text" id="rescueToken" placeholder="Token Contract Address">
-    <input type="number" id="rescueAmount" placeholder="Amount to Rescue">
-    <button onclick="rescueTokens()">Rescue</button>
-    <div id="rescueStatus" class="info"></div>
-  </div>
+  <label for="rescueAmount">Withdraw Extra Token (Navaa):</label>
+  <input type="number" id="rescueAmount" placeholder="Enter amount to withdraw">
+  <button onclick="rescueTokens()">Withdraw</button>
 
-  <div class="card">
-    <h3>Live Reward Fund</h3>
-    <div id="liveFund" class="info">-</div>
-  </div>
-
-  <div class="card">
-    <h3>Total Staking Accounts</h3>
-    <div id="totalStakers" class="info">-</div>
-  </div>
+  <button onclick="refreshInfo()">Refresh Info</button>
 </div>
 
 <script>
-const STAKING_CONTRACT = "0x9fd473975cecd4587d78eb71f4498dde778c4b83";
-const TOKEN_CONTRACT = "0x23b7a4c2ec9d742b5b1698149e812ca1e10d3e73";
+const CONTRACT_ADDRESS = "0x9fd473975cecd4587d78eb71f4498dde778c4b83";
+const TOKEN_ADDRESS = "0x23b7a4c2ec9d742b5b1698149e812ca1e10d3e73";
 
 const ABI = [
-  "function fund(uint256 amount)",
-  "function rescueERC20(address tokenAddress, uint256 amount)",
-  "function totalRewardLiability() view returns (uint256)",
-  "function stakes(address user) view returns (tuple(uint256 amount,uint256 startTime,uint256 claimed,bool principalWithdrawn,uint256 totalReward)[])"
-];
-const TOKEN_ABI = [
-  "function approve(address spender, uint256 amount) returns (bool)",
-  "function balanceOf(address account) view returns (uint256)",
-  "function decimals() view returns (uint8)"
+  "function fund(uint256 amount) external",
+  "function rescueERC20(address tokenAddress, uint256 amount) external",
+  "function totalStakingAccounts() external view returns (uint256)",
+  "function totalRewardLiability() external view returns (uint256)",
+  "function token() external view returns (address)"
 ];
 
-let provider, signer, userAddress, contract, tokenContract;
+let provider, signer, contract, tokenContract;
 
 async function connectWallet(){
   if(window.ethereum){
     provider = new ethers.providers.Web3Provider(window.ethereum);
     await provider.send("eth_requestAccounts", []);
-  } else {
-    alert("Install MetaMask");
-    return;
-  }
+  } else { alert("Metamask not found"); return; }
   signer = provider.getSigner();
-  userAddress = await signer.getAddress();
-  document.getElementById("ownerAddress").innerText = userAddress;
-  contract = new ethers.Contract(STAKING_CONTRACT, ABI, signer);
-  tokenContract = new ethers.Contract(TOKEN_CONTRACT, TOKEN_ABI, signer);
-  checkOwner();
-  updateLiveFund();
-  updateTotalStakers();
+  contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
+  tokenContract = new ethers.Contract(TOKEN_ADDRESS, [
+    "function balanceOf(address account) view returns (uint256)",
+    "function decimals() view returns (uint8)"
+  ], provider);
+  refreshInfo();
 }
 
-async function checkOwner(){
-  // Owner check: simple: allow if connected wallet is contract deployer
-  const ownerCheck = await provider.getCode(STAKING_CONTRACT); 
-  // simple demo: assume connected wallet is owner
-  // better: implement contract owner() view
+async function refreshInfo(){
+  if(!contract) { await connectWallet(); }
+  try{
+    const liability = await contract.totalRewardLiability();
+    const decimals = await tokenContract.decimals();
+    const formatted = ethers.utils.formatUnits(liability, decimals);
+    document.getElementById("rewardFund").innerText = formatted;
+
+    const total = await contract.totalStakingAccounts();
+    document.getElementById("totalAccounts").innerText = total.toString();
+  } catch(err){ console.error(err); alert("Error: "+err.message);}
 }
 
-async function fundReward(){
+async function fundTokens(){
   const amountInput = document.getElementById("fundAmount").value;
+  if(!amountInput || parseFloat(amountInput) <=0 ){ alert("Enter valid amount"); return; }
+  const decimals = await tokenContract.decimals();
+  const amount = ethers.utils.parseUnits(amountInput.toString(), decimals);
+  try{
+    const tx = await contract.fund(amount);
+    alert("Funding Tx: "+tx.hash);
+    await tx.wait();
+    alert("✅ Funded successfully");
+    refreshInfo();
+  } catch(err){ console.error(err); alert("Fund failed: "+(err?.reason||err?.message)); }
+}
+
+async function rescueTokens(){
+  const amountInput = document.getElementById("rescueAmount").value;
   if(!amountInput || parseFloat(amountInput)<=0){ alert("Enter valid amount"); return; }
   const decimals = await tokenContract.decimals();
   const amount = ethers.utils.parseUnits(amountInput.toString(), decimals);
   try{
-    const approveTx = await tokenContract.approve(STAKING_CONTRACT, amount);
-    await approveTx.wait();
-    const tx = await contract.fund(amount);
-    document.getElementById("fundStatus").innerText = "Funding... Tx: " + tx.hash;
+    const tx = await contract.rescueERC20(TOKEN_ADDRESS, amount);
+    alert("Withdraw Tx: "+tx.hash);
     await tx.wait();
-    document.getElementById("fundStatus").innerText = "✅ Funded Successfully!";
-    updateLiveFund();
-  } catch(err){ console.error(err); alert("Error: "+(err.reason||err.message||err)); }
+    alert("✅ Withdrawn successfully");
+    refreshInfo();
+  } catch(err){ console.error(err); alert("Withdraw failed: "+(err?.reason||err?.message)); }
 }
 
-async function rescueTokens(){
-  const tokenAddr = document.getElementById("rescueToken").value;
-  const amt = document.getElementById("rescueAmount").value;
-  if(!tokenAddr || !amt || parseFloat(amt)<=0){ alert("Enter valid data"); return; }
-  try{
-    const decimals = await (new ethers.Contract(tokenAddr, TOKEN_ABI, signer)).decimals();
-    const amount = ethers.utils.parseUnits(amt.toString(), decimals);
-    const tx = await contract.rescueERC20(tokenAddr, amount);
-    document.getElementById("rescueStatus").innerText = "Rescue Tx: "+tx.hash;
-    await tx.wait();
-    document.getElementById("rescueStatus").innerText = "✅ Rescued Successfully!";
-  } catch(err){ console.error(err); alert("Error: "+(err.reason||err.message||err)); }
-}
-
-async function updateLiveFund(){
-  if(!contract) return;
-  try{
-    const val = await contract.totalRewardLiability();
-    const formatted = ethers.utils.formatUnits(val,18);
-    document.getElementById("liveFund").innerText = formatted + " NAVAA";
-  } catch(err){ console.error(err); }
-}
-
-async function updateTotalStakers(){
-  if(!provider) return;
-  try{
-    // fetch Transfer/Stake events is more complex on-chain
-    // for simplicity, just demo with 0
-    document.getElementById("totalStakers").innerText = "-";
-  } catch(err){ console.error(err); }
-}
-
-document.getElementById("connectButton").onclick = connectWallet;
+// Auto-connect on load
+window.onload = connectWallet;
 </script>
+
 </body>
 </html>
