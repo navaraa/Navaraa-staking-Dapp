@@ -3,151 +3,119 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Navaraa Admin UI</title>
+<title>Navaraa Admin Dashboard</title>
 <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
 <style>
-body {
-    font-family: 'Poppins', sans-serif;
-    background: #f0f2f5;
-    margin:0;
-    padding:0;
-}
-.container {
-    max-width: 500px;
-    margin: 50px auto;
-    background:#fff;
-    padding:25px;
-    border-radius:15px;
-    box-shadow:0 8px 24px rgba(0,0,0,0.15);
-}
-h2 {
-    text-align:center;
-    margin-bottom:20px;
-}
-input, button {
-    width:100%;
-    padding:10px;
-    margin:8px 0;
-    border-radius:8px;
-    border:1px solid #ccc;
-    font-size:16px;
-}
-button {
-    cursor:pointer;
-    background:#4facfe;
-    color:#fff;
-    font-weight:600;
-    border:none;
-}
-button:hover {
-    background:#00f2fe;
-}
-.status {
-    background:#f5f5f5;
-    padding:10px;
-    border-radius:8px;
-    margin:10px 0;
-    font-weight:600;
-}
+body { font-family: 'Poppins', sans-serif; background:#f5f5f5; margin:0; padding:0; }
+.container { max-width: 800px; margin:80px auto; padding:20px; }
+h2 { text-align:center; margin-bottom:20px; color:#333; }
+.card { background: #fff; padding:20px; margin-bottom:20px; border-radius:12px; box-shadow:0 4px 20px rgba(0,0,0,0.1); }
+.card p { margin:8px 0; font-size:16px; color:#444; }
+.btn { display:inline-block; background:#4facfe; color:#fff; padding:10px 16px; border-radius:10px; cursor:pointer; font-weight:600; transition:0.3s; margin-right:10px; }
+.btn:hover { background:#00f2fe; transform:scale(1.05); }
+@media(max-width:480px){ .btn { padding:8px 12px; font-size:14px; margin-bottom:10px; width:100%; text-align:center; } }
 </style>
 </head>
 <body>
 <div class="container">
-    <h2>Navaraa Admin Panel</h2>
-    <button id="connectBtn">Connect Owner Wallet</button>
-    <div class="status" id="ownerAddress">Not Connected</div>
+  <h2>Navaraa Staking Admin Dashboard</h2>
 
-    <h3>Fund Contract (Reward)</h3>
-    <input type="number" id="fundAmount" placeholder="Enter amount to fund">
-    <button onclick="fundContract()">Add Fund</button>
+  <div class="card">
+    <p><b>Contract NAVAA Balance:</b> <span id="contractBalance">-</span></p>
+    <p><b>Total Reward Liability:</b> <span id="rewardLiability">-</span></p>
+    <p><b>Available for Rewards:</b> <span id="availableFund">-</span></p>
+    <p><b>Total Staking Accounts:</b> <span id="totalStakers">-</span></p>
+  </div>
 
-    <h3>Rescue Tokens</h3>
-    <input type="text" id="rescueToken" placeholder="Token address to rescue">
-    <input type="number" id="rescueAmount" placeholder="Amount to rescue">
-    <button onclick="rescueTokens()">Rescue</button>
-
-    <h3>Live Info</h3>
-    <div class="status">Reward Fund: <span id="rewardFund">-</span></div>
-    <div class="status">Total Stakers: <span id="totalStakers">-</span></div>
-
+  <div class="card">
+    <button class="btn" onclick="fundTokens()">Add Fund</button>
+    <button class="btn" onclick="rescueTokens()">Rescue Extra Tokens</button>
+  </div>
 </div>
 
 <script>
-const CONTRACT_ADDRESS = "0x9fd473975cecd4587d78eb71f4498dde778c4b83"; // Staking contract
-const TOKEN_ADDRESS = "0x23b7a4c2ec9d742b5b1698149e812ca1e10d3e73"; // NAVAA token
-
-const ABI = [
-    "function totalRewardLiability() view returns(uint256)",
-    "function stakeCount(address user) view returns(uint256)",
-    "function fund(uint256 amount)",
-    "function rescueERC20(address tokenAddress, uint256 amount) external",
-];
+const CONTRACT_ADDRESS = "0x9fd473975cecd4587d78eb71f4498dde778c4b83";
+const TOKEN_ADDRESS = "0x23b7a4c2ec9d742b5b1698149e812ca1e10d3e73";
 
 const TOKEN_ABI = [
-    "function approve(address spender, uint256 amount) returns(bool)",
-    "function balanceOf(address account) view returns(uint256)",
-    "function decimals() view returns(uint8)"
+  "function balanceOf(address account) view returns (uint256)",
+  "function approve(address spender, uint256 amount) returns (bool)",
+  "function transfer(address recipient, uint256 amount) returns (bool)",
+  "function transferFrom(address sender, address recipient, uint256 amount) returns (bool)"
 ];
 
-let provider, signer, contract, tokenContract, ownerAddress;
+const CONTRACT_ABI = [
+  "function totalRewardLiability() view returns (uint256)",
+  "function stakeCount(address user) view returns (uint256)",
+  "function fund(uint256 amount)",
+  "function rescueERC20(address tokenAddress, uint256 amount)"
+];
 
-document.getElementById("connectBtn").onclick = async () => {
-    if(window.ethereum){
-        provider = new ethers.providers.Web3Provider(window.ethereum);
-        await provider.send("eth_requestAccounts", []);
-        signer = provider.getSigner();
-        ownerAddress = await signer.getAddress();
-        document.getElementById("ownerAddress").innerText = ownerAddress;
-        contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
-        tokenContract = new ethers.Contract(TOKEN_ADDRESS, TOKEN_ABI, signer);
-        loadLiveInfo();
-    } else { alert("Please install MetaMask"); }
+let provider, signer, contract, tokenContract;
+
+async function initAdmin() {
+  if (window.ethereum) {
+    provider = new ethers.providers.Web3Provider(window.ethereum);
+    await provider.send("eth_requestAccounts", []);
+    signer = provider.getSigner();
+    contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+    tokenContract = new ethers.Contract(TOKEN_ADDRESS, TOKEN_ABI, signer);
+    loadAdminInfo();
+  } else {
+    alert("Install MetaMask or Web3 wallet");
+  }
 }
 
-async function fundContract() {
-    try {
-        const amount = document.getElementById("fundAmount").value;
-        if(!amount || isNaN(amount) || parseFloat(amount)<=0){ alert("Enter valid amount"); return; }
-        const decimals = await tokenContract.decimals();
-        const amt = ethers.utils.parseUnits(amount.toString(), decimals);
+async function loadAdminInfo() {
+  try {
+    const balance = await tokenContract.balanceOf(CONTRACT_ADDRESS);
+    const liability = await contract.totalRewardLiability();
+    const available = balance.sub(liability);
 
-        // approve first
-        const approveTx = await tokenContract.approve(CONTRACT_ADDRESS, amt);
-        await approveTx.wait();
+    // If you have a getter for all stakers, replace 0 with actual count
+    const totalStakers = 0;
 
-        const tx = await contract.fund(amt);
-        alert("Funding... Tx: "+tx.hash);
-        await tx.wait();
-        alert("Fund added!");
-        loadLiveInfo();
-    } catch(e){ console.error(e); alert(e.message); }
+    document.getElementById("contractBalance").innerText = ethers.utils.formatEther(balance) + " NAVAA";
+    document.getElementById("rewardLiability").innerText = ethers.utils.formatEther(liability) + " NAVAA";
+    document.getElementById("availableFund").innerText = ethers.utils.formatEther(available) + " NAVAA";
+    document.getElementById("totalStakers").innerText = totalStakers;
+
+  } catch(e){ console.error(e); }
+
+  setTimeout(loadAdminInfo, 5000); // refresh every 5 sec
+}
+
+async function fundTokens() {
+  const amount = prompt("Enter NAVAA amount to fund (example: 100000):");
+  if (!amount) return;
+  const weiAmount = ethers.utils.parseUnits(amount, 18);
+  try {
+    const tx = await contract.fund(weiAmount);
+    alert("Funding... Tx: " + tx.hash);
+    await tx.wait();
+    alert("Funded successfully!");
+    loadAdminInfo();
+  } catch(e){
+    alert("Error funding: " + (e?.message || e));
+  }
 }
 
 async function rescueTokens() {
-    try {
-        const tokenAddr = document.getElementById("rescueToken").value;
-        const amount = document.getElementById("rescueAmount").value;
-        if(!tokenAddr || !amount){ alert("Enter token address and amount"); return; }
-        const decimals = await tokenContract.decimals();
-        const amt = ethers.utils.parseUnits(amount.toString(), decimals);
-        const tx = await contract.rescueERC20(tokenAddr, amt);
-        alert("Rescuing tokens... Tx: "+tx.hash);
-        await tx.wait();
-        alert("Tokens rescued!");
-        loadLiveInfo();
-    } catch(e){ console.error(e); alert(e.message); }
+  const amount = prompt("Enter NAVAA amount to rescue:");
+  if (!amount) return;
+  const weiAmount = ethers.utils.parseUnits(amount, 18);
+  try {
+    const tx = await contract.rescueERC20(TOKEN_ADDRESS, weiAmount);
+    alert("Rescuing... Tx: " + tx.hash);
+    await tx.wait();
+    alert("Rescue done!");
+    loadAdminInfo();
+  } catch(e){
+    alert("Error rescuing: " + (e?.message || e));
+  }
 }
 
-async function loadLiveInfo() {
-    if(!contract) return;
-    const reward = await contract.totalRewardLiability();
-    const decimals = await tokenContract.decimals();
-    document.getElementById("rewardFund").innerText = ethers.utils.formatUnits(reward, decimals);
-
-    // Total stakers counting
-    // Here we assume you know user list off-chain or track via events; simple approximation:
-    document.getElementById("totalStakers").innerText = "Check events in contract"; 
-}
+initAdmin();
 </script>
 </body>
 </html>
