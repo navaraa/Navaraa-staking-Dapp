@@ -1,133 +1,155 @@
-<!Doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Navaraa Staking — DApp</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Navaraa Admin Panel</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-  <!-- External CSS -->
-  <link rel="stylesheet" href="style.css" />
+<script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js"></script>
 
-  <!-- Ethers.js CDN (v5) -->
-  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.min.js"></script>
-  <!-- WalletConnect v1 provider (mobile wallets) -->
-  <script src="https://cdn.jsdelivr.net/npm/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js"></script>
-  <!-- Web3Modal v1 -->
-  <script src="https://cdn.jsdelivr.net/npm/web3modal@1.9.12/dist/index.min.js"></script>
+<style>
+body { font-family: 'Poppins', sans-serif; background:#f5f5f5; margin:0; padding:0;}
+.header { background:#1e1e2f; color:#fff; padding:15px 20px; text-align:center; font-size:20px; font-weight:600; }
+.container { max-width:600px; margin:20px auto; padding:0 15px; display:flex; flex-direction:column; gap:20px; }
+.card { background:#fff; padding:20px; border-radius:12px; box-shadow:0 5px 20px rgba(0,0,0,0.1); }
+.card h3 { margin-bottom:12px; font-size:18px; color:#333; }
+.card input, .card button { padding:10px; border-radius:8px; border:1px solid #ccc; font-size:16px; margin-bottom:10px; width:100%; }
+.card button { cursor:pointer; background:#4facfe; color:#fff; font-weight:600; border:none; transition:0.3s; }
+.card button:hover { background:#00f2fe; }
+.info { font-weight:600; font-size:16px; color:#111; margin-bottom:5px; }
+@media(max-width:480px){ .container{padding:0 10px;} }
+</style>
 </head>
-  
 <body>
-  
-  <div class="wrap">
-    
-    <header>
-      <div class="brand">
-        <div class="logo">
-          <img src="logo.png" alt="Logo" />
-        </div>
-      </div>
 
-      <div class="controls">
-        <div id="addrShort" class="tiny-muted">Not connected</div>
-        <button id="connectBtn" class="btn">Connect Wallet</button>
-      </div>
-    </header>
-    
-
-    <main class="grid">
-      <!-- left column: user + forms -->
-      <section class="card">
-        <div class="row" style="margin-bottom:12px;">
-          <div>
-            <div class="muted">Your Wallet</div>
-            <div style="display:flex; gap:8px; align-items:center; margin-top:6px;">
-              <div id="walletBalance" class="badge">0 NAVAA</div>
-              <div id="totalPending" class="pill">Pending: 0</div>
-            </div>
-            <div class="tiny-muted" style="margin-top:6px;">Token: <span id="tokenAddrShort"></span></div>
-          </div>
-          <div style="text-align:right;">
-            <div class="muted">Contract</div>
-            <div class="tiny-muted" id="contractAddrShort"></div>
-            <div class="tiny-muted" id="managementWallet"></div>
-          </div>
-        </div>
-
-        <hr class="divider" />
-
-        <!-- Stake form -->
-        <div class="field">
-          <label>Amount to stake (NAVAA)</label>
-          <input id="stakeAmount" type="number" placeholder="170000 (minimum)" min="0" step="1" />
-        </div>
-        <div class="field">
-          <label>Referrer (optional address)</label>
-          <input id="referrer" type="text" placeholder="0x... or leave empty for management wallet" />
-          <div class="tiny-muted">If left empty, management wallet will be used as referrer.</div>
-        </div>
-        <div class="flex">
-          <button id="stakeBtn" class="btn">Stake Tokens</button>
-          <button id="approveBtn" class="btn ghost">Approve Token</button>
-          <div id="stakeSpinner" style="display:none" class="spinner"></div>
-        </div>
-
-        <hr class="divider" />
-
-        <div class="actions">
-          <div>
-            <div class="muted">Claim Rewards</div>
-            <div class="tiny-muted">Select the stakes below and click <strong>Claim</strong></div>
-            <div style="margin-top:8px;">
-              <button id="claimBtn" class="btn">Claim Selected</button>
-              <div id="claimSpinner" style="display:none" class="spinner"></div>
-            </div>
-          </div>
-
-          <div>
-            <div class="muted">Withdraw Principal (Matured)</div>
-            <div class="tiny-muted">Select matured stakes and click <strong>Withdraw</strong></div>
-            <div style="margin-top:8px;">
-              <button id="withdrawBtn" class="btn">Withdraw Selected</button>
-              <div id="withdrawSpinner" style="display:none" class="spinner"></div>
-            </div>
-          </div>
-        </div>
-
-      </section>
-
-      <!-- right column: stakes list & logs -->
-      <section class="card">
-        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
-          <div>
-            <div class="muted">Your Stakes</div>
-            <div class="tiny-muted">Indexes, amounts, start time, pending reward (live)</div>
-          </div>
-          <div style="display:flex; gap:8px; align-items:center;">
-            <button id="refreshBtn" class="btn ghost">Refresh</button>
-            <div id="loadingLives" style="display:none" class="tiny-muted"><span class="spinner"></span></div>
-          </div>
-        </div>
-
-        <div class="stake-list" id="stakeList">
-          <!-- dynamic stake items -->
-        </div>
-
-        <hr class="divider" />
-        <div style="display:flex; justify-content:space-between; gap:12px; align-items:center;">
-          <div class="tiny-muted">Logs</div>
-          <button id="clearLog" class="btn ghost">Clear</button>
-        </div>
-        <pre id="log" class="logbox">Ready.</pre>
-      </section>
-    </main>
-
-    <footer>
-      <div>Copy-paste ready — Host with GitHub Pages. &nbsp;|&nbsp; Built for Polygon Mainnet</div>
-    </footer>
+<div class="header">Navaraa Admin Panel</div>
+<div class="container">
+  <div class="card">
+    <h3>Connect Owner Wallet</h3>
+    <button id="connectButton">Connect Wallet</button>
+    <div id="ownerAddress" class="info">Not Connected</div>
   </div>
 
-  <!-- App logic -->
-  <script src="app.js"></script>
+  <div class="card">
+    <h3>Fund Reward Pool</h3>
+    <input type="number" id="fundAmount" placeholder="Amount to Fund (NAVAA)">
+    <button onclick="fundReward()">Fund Pool</button>
+    <div id="fundStatus" class="info"></div>
+  </div>
+
+  <div class="card">
+    <h3>Rescue Extra Tokens</h3>
+    <input type="text" id="rescueToken" placeholder="Token Contract Address">
+    <input type="number" id="rescueAmount" placeholder="Amount to Rescue">
+    <button onclick="rescueTokens()">Rescue</button>
+    <div id="rescueStatus" class="info"></div>
+  </div>
+
+  <div class="card">
+    <h3>Live Reward Fund</h3>
+    <div id="liveFund" class="info">-</div>
+  </div>
+
+  <div class="card">
+    <h3>Total Staking Accounts</h3>
+    <div id="totalStakers" class="info">-</div>
+  </div>
+</div>
+
+<script>
+const STAKING_CONTRACT = "0x9fd473975cecd4587d78eb71f4498dde778c4b83";
+const TOKEN_CONTRACT = "0x23b7a4c2ec9d742b5b1698149e812ca1e10d3e73";
+
+const ABI = [
+  "function fund(uint256 amount)",
+  "function rescueERC20(address tokenAddress, uint256 amount)",
+  "function totalRewardLiability() view returns (uint256)",
+  "function stakes(address user) view returns (tuple(uint256 amount,uint256 startTime,uint256 claimed,bool principalWithdrawn,uint256 totalReward)[])"
+];
+const TOKEN_ABI = [
+  "function approve(address spender, uint256 amount) returns (bool)",
+  "function balanceOf(address account) view returns (uint256)",
+  "function decimals() view returns (uint8)"
+];
+
+let provider, signer, userAddress, contract, tokenContract;
+
+async function connectWallet(){
+  if(window.ethereum){
+    provider = new ethers.providers.Web3Provider(window.ethereum);
+    await provider.send("eth_requestAccounts", []);
+  } else {
+    alert("Install MetaMask");
+    return;
+  }
+  signer = provider.getSigner();
+  userAddress = await signer.getAddress();
+  document.getElementById("ownerAddress").innerText = userAddress;
+  contract = new ethers.Contract(STAKING_CONTRACT, ABI, signer);
+  tokenContract = new ethers.Contract(TOKEN_CONTRACT, TOKEN_ABI, signer);
+  checkOwner();
+  updateLiveFund();
+  updateTotalStakers();
+}
+
+async function checkOwner(){
+  // Owner check: simple: allow if connected wallet is contract deployer
+  const ownerCheck = await provider.getCode(STAKING_CONTRACT); 
+  // simple demo: assume connected wallet is owner
+  // better: implement contract owner() view
+}
+
+async function fundReward(){
+  const amountInput = document.getElementById("fundAmount").value;
+  if(!amountInput || parseFloat(amountInput)<=0){ alert("Enter valid amount"); return; }
+  const decimals = await tokenContract.decimals();
+  const amount = ethers.utils.parseUnits(amountInput.toString(), decimals);
+  try{
+    const approveTx = await tokenContract.approve(STAKING_CONTRACT, amount);
+    await approveTx.wait();
+    const tx = await contract.fund(amount);
+    document.getElementById("fundStatus").innerText = "Funding... Tx: " + tx.hash;
+    await tx.wait();
+    document.getElementById("fundStatus").innerText = "✅ Funded Successfully!";
+    updateLiveFund();
+  } catch(err){ console.error(err); alert("Error: "+(err.reason||err.message||err)); }
+}
+
+async function rescueTokens(){
+  const tokenAddr = document.getElementById("rescueToken").value;
+  const amt = document.getElementById("rescueAmount").value;
+  if(!tokenAddr || !amt || parseFloat(amt)<=0){ alert("Enter valid data"); return; }
+  try{
+    const decimals = await (new ethers.Contract(tokenAddr, TOKEN_ABI, signer)).decimals();
+    const amount = ethers.utils.parseUnits(amt.toString(), decimals);
+    const tx = await contract.rescueERC20(tokenAddr, amount);
+    document.getElementById("rescueStatus").innerText = "Rescue Tx: "+tx.hash;
+    await tx.wait();
+    document.getElementById("rescueStatus").innerText = "✅ Rescued Successfully!";
+  } catch(err){ console.error(err); alert("Error: "+(err.reason||err.message||err)); }
+}
+
+async function updateLiveFund(){
+  if(!contract) return;
+  try{
+    const val = await contract.totalRewardLiability();
+    const formatted = ethers.utils.formatUnits(val,18);
+    document.getElementById("liveFund").innerText = formatted + " NAVAA";
+  } catch(err){ console.error(err); }
+}
+
+async function updateTotalStakers(){
+  if(!provider) return;
+  try{
+    // fetch Transfer/Stake events is more complex on-chain
+    // for simplicity, just demo with 0
+    document.getElementById("totalStakers").innerText = "-";
+  } catch(err){ console.error(err); }
+}
+
+document.getElementById("connectButton").onclick = connectWallet;
+</script>
 </body>
 </html>
-
